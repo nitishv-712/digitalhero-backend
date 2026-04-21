@@ -12,6 +12,8 @@ const winnersRoutes      = require('./routes/winners')
 const adminRoutes        = require('./routes/admin')
 const donationsRoutes    = require('./routes/donations')
 
+const { startCron } = require('./lib/cron')
+
 const app = express()
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -24,14 +26,20 @@ const allowedOrigins = isDev
   ? ['http://localhost:3000', 'http://localhost:3001']
   : [process.env.CLIENT_URL, process.env.ADMIN_URL].filter(Boolean)
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, cb) => {
-    // allow requests with no origin (curl, Razorpay webhooks, mobile)
+    // allow requests with no origin (curl, Razorpay webhooks, server-to-server)
     if (!origin || allowedOrigins.includes(origin)) return cb(null, true)
-    cb(new Error(`CORS blocked: ${origin}`))
+    cb(null, false) // reject silently — don't throw, let browser show CORS error
   },
-  credentials: true
-}))
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}
+
+// Handle preflight OPTIONS for all routes
+app.options('*', cors(corsOptions))
+app.use(cors(corsOptions))
 
 app.use(express.json())
 
@@ -49,8 +57,16 @@ app.get('/health', (_, res) => res.json({ status: 'ok', env: process.env.NODE_EN
 
 app.use((err, req, res, next) => {
   if (isDev) console.error(err)
-  res.status(500).json({ error: err.message || 'Internal server error' })
+  const origin = req.headers.origin
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+  }
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' })
 })
 
 const PORT = process.env.PORT || 4000
-app.listen(PORT, () => console.log(`Backend running on port ${PORT} [${process.env.NODE_ENV}]`))
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT} [${process.env.NODE_ENV}]`)
+  startCron()
+})

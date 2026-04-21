@@ -6,8 +6,14 @@ const { requireAdmin } = require('../middleware/auth')
 router.get('/users', requireAdmin, async (req, res) => {
   try {
     const { search } = req.query
+    const where = search ? {
+      OR: [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ]
+    } : {}
     const users = await prisma.profile.findMany({
-      where: search ? { fullName: { contains: search, mode: 'insensitive' } } : {},
+      where,
       include: {
         subscriptions: {
           take: 1,

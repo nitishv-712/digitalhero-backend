@@ -68,6 +68,41 @@ router.post('/', requireAdmin, async (req, res) => {
   }
 })
 
+// PATCH /api/draws/:id — admin (only draft draws)
+router.patch('/:id', requireAdmin, async (req, res) => {
+  try {
+    const { title, draw_month, logic } = req.body
+    const draw = await prisma.draw.findUnique({ where: { id: req.params.id } })
+    if (!draw) return res.status(404).json({ error: 'Draw not found' })
+    if (draw.status === 'published') return res.status(400).json({ error: 'Cannot edit a published draw' })
+    const updated = await prisma.draw.update({
+      where: { id: req.params.id },
+      data: {
+        ...(title && { title }),
+        ...(draw_month && { drawMonth: new Date(draw_month) }),
+        ...(logic && { logic })
+      }
+    })
+    res.json(updated)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update draw' })
+  }
+})
+
+// DELETE /api/draws/:id — admin
+router.delete('/:id', requireAdmin, async (req, res) => {
+  try {
+    const draw = await prisma.draw.findUnique({ where: { id: req.params.id } })
+    if (!draw) return res.status(404).json({ error: 'Draw not found' })
+    if (draw.status === 'published') return res.status(400).json({ error: 'Cannot delete a published draw' })
+    await prisma.drawEntry.deleteMany({ where: { drawId: req.params.id } })
+    await prisma.draw.delete({ where: { id: req.params.id } })
+    res.json({ message: 'Draw deleted' })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete draw' })
+  }
+})
+
 function randomDraw() {
   const numbers = new Set()
   while (numbers.size < 5) numbers.add(Math.floor(Math.random() * 45) + 1)

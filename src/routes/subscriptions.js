@@ -3,6 +3,7 @@ const Razorpay = require('razorpay')
 const crypto = require('crypto')
 const prisma = require('../lib/prisma')
 const { requireAuth } = require('../middleware/auth')
+const { sendSubscriptionEmail } = require('../lib/mailer')
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -102,6 +103,16 @@ router.post('/verify', requireAuth, async (req, res) => {
         currentPeriodEnd: periodEnd
       }
     })
+
+    const profile = await prisma.profile.findUnique({ where: { id: req.user.id }, select: { fullName: true, email: true } })
+    if (profile) {
+      sendSubscriptionEmail({
+        to: profile.email, name: profile.fullName, event: 'activated',
+        plan, renewsAt: periodEnd.toLocaleDateString('en-GB'),
+        dashboardUrl: `${process.env.CLIENT_URL}/dashboard`
+      }).catch(e => console.error('[mailer]', e.message))
+    }
+
     res.json(sub)
   } catch (err) {
     res.status(500).json({ error: 'Failed to verify subscription payment' })
@@ -120,6 +131,16 @@ router.post('/cancel', requireAuth, async (req, res) => {
       where: { id: sub.id },
       data: { status: 'cancelled', cancelledAt: new Date() }
     })
+
+    const profile = await prisma.profile.findUnique({ where: { id: req.user.id }, select: { fullName: true, email: true } })
+    if (profile) {
+      sendSubscriptionEmail({
+        to: profile.email, name: profile.fullName, event: 'cancelled',
+        plan: sub.plan, renewsAt: null,
+        dashboardUrl: `${process.env.CLIENT_URL}/dashboard`
+      }).catch(e => console.error('[mailer]', e.message))
+    }
+
     res.json(updated)
   } catch (err) {
     res.status(500).json({ error: 'Failed to cancel subscription' })
