@@ -27,8 +27,8 @@ const allowedOrigins = [
   'http://localhost:3001',
   process.env.CLIENT_URL,
   process.env.ADMIN_URL,
-  process.env.PRODUCTION_CLIENT_URL,
-  process.env.PRODUCTION_ADMIN_URL
+  process.env.PRODUCTION_CLIENT_URL || 'https://digitalhero-web.vercel.app',
+  process.env.PRODUCTION_ADMIN_URL || 'https://digitalhero-admin.vercel.app'
 ].filter(Boolean)
 
 const corsOptions = {
