@@ -1,0 +1,193 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SubscriptionPlan {
+  monthly
+  yearly
+}
+
+enum SubscriptionStatus {
+  active
+  inactive
+  cancelled
+  lapsed
+}
+
+enum DrawStatus {
+  draft
+  simulation
+  published
+}
+
+enum DrawLogic {
+  random
+  algorithmic
+}
+
+enum WinnerStatus {
+  pending
+  verified
+  rejected
+  paid
+}
+
+enum MatchType {
+  match_3
+  match_4
+  match_5
+}
+
+model Profile {
+  id        String   @id @db.Uuid
+  fullName  String   @map("full_name")
+  email     String
+  avatarUrl String?  @map("avatar_url")
+  isAdmin   Boolean  @default(false) @map("is_admin")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  subscriptions Subscription[]
+  scores        Score[]
+  drawEntries   DrawEntry[]
+  winners       Winner[]
+  donations     Donation[]
+
+  @@map("profiles")
+}
+
+model Charity {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String
+  description String?
+  imageUrl    String?  @map("image_url")
+  websiteUrl  String?  @map("website_url")
+  isFeatured  Boolean  @default(false) @map("is_featured")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  events        CharityEvent[]
+  subscriptions Subscription[]
+  donations     Donation[]
+
+  @@map("charities")
+}
+
+model CharityEvent {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  charityId   String   @map("charity_id") @db.Uuid
+  title       String
+  eventDate   DateTime @map("event_date") @db.Date
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  charity Charity @relation(fields: [charityId], references: [id], onDelete: Cascade)
+
+  @@map("charity_events")
+}
+
+model Subscription {
+  id                     String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                 String             @map("user_id") @db.Uuid
+  plan                   SubscriptionPlan
+  status                 SubscriptionStatus @default(active)
+  razorpayCustomerId     String?            @map("razorpay_customer_id")
+  razorpaySubscriptionId String?            @map("razorpay_subscription_id")
+  amountPence            Int                @map("amount_pence")
+  charityId              String?            @map("charity_id") @db.Uuid
+  charityPercentage      Int                @default(10) @map("charity_percentage")
+  currentPeriodStart     DateTime           @default(now()) @map("current_period_start")
+  currentPeriodEnd       DateTime           @map("current_period_end")
+  cancelledAt            DateTime?          @map("cancelled_at")
+  createdAt              DateTime           @default(now()) @map("created_at")
+
+  user    Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  charity Charity? @relation(fields: [charityId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model Score {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  score     Int
+  scoreDate DateTime @map("score_date")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("scores")
+}
+
+model Draw {
+  id              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title           String
+  drawMonth       DateTime   @map("draw_month") @db.Date
+  logic           DrawLogic  @default(random)
+  status          DrawStatus @default(draft)
+  drawnNumbers    Int[]      @map("drawn_numbers")
+  jackpotRollover Int        @default(0) @map("jackpot_rollover")
+  totalPool       Int        @default(0) @map("total_pool")
+  pool3           Int        @default(0) @map("pool_3")
+  pool4           Int        @default(0) @map("pool_4")
+  pool5           Int        @default(0) @map("pool_5")
+  publishedAt     DateTime?  @map("published_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  entries DrawEntry[]
+  winners Winner[]
+
+  @@map("draws")
+}
+
+model DrawEntry {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  drawId       String    @map("draw_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  scores       Int[]
+  matchedCount Int?      @map("matched_count")
+  matchType    MatchType? @map("match_type")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  draw Draw    @relation(fields: [drawId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([drawId, userId])
+  @@map("draw_entries")
+}
+
+model Winner {
+  id          String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  drawId      String       @map("draw_id") @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  matchType   MatchType    @map("match_type")
+  prizeAmount Int          @map("prize_amount")
+  proofUrl    String?      @map("proof_url")
+  status      WinnerStatus @default(pending)
+  adminNote   String?      @map("admin_note")
+  paidAt      DateTime?    @map("paid_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  draw Draw    @relation(fields: [drawId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("winners")
+}
+
+model Donation {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId            String?  @map("user_id") @db.Uuid
+  charityId         String   @map("charity_id") @db.Uuid
+  amountPence       Int      @map("amount_pence")
+  razorpayPaymentId String?  @map("razorpay_payment_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user    Profile? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  charity Charity  @relation(fields: [charityId], references: [id])
+
+  @@map("donations")
+}
