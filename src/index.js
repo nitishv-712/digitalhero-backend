@@ -2,17 +2,29 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 
-const authRoutes         = require('./routes/auth')
-const profileRoutes      = require('./routes/profile')
-const scoresRoutes       = require('./routes/scores')
-const subscriptionRoutes = require('./routes/subscriptions')
-const charitiesRoutes    = require('./routes/charities')
-const drawsRoutes        = require('./routes/draws')
-const winnersRoutes      = require('./routes/winners')
-const adminRoutes        = require('./routes/admin')
-const donationsRoutes    = require('./routes/donations')
+// Safely require routes with error handling
+let authRoutes, profileRoutes, scoresRoutes, subscriptionRoutes, charitiesRoutes, drawsRoutes, winnersRoutes, adminRoutes, donationsRoutes
 
-const { startCron } = require('./lib/cron')
+try {
+  authRoutes         = require('./routes/auth')
+  profileRoutes      = require('./routes/profile')
+  scoresRoutes       = require('./routes/scores')
+  subscriptionRoutes = require('./routes/subscriptions')
+  charitiesRoutes    = require('./routes/charities')
+  drawsRoutes        = require('./routes/draws')
+  winnersRoutes      = require('./routes/winners')
+  adminRoutes        = require('./routes/admin')
+  donationsRoutes    = require('./routes/donations')
+} catch (err) {
+  console.error('Failed to load routes:', err.message)
+}
+
+let startCron = () => {}
+try {
+  startCron = require('./lib/cron').startCron
+} catch (err) {
+  console.error('Failed to load cron:', err.message)
+}
 
 const app = express()
 const isDev = process.env.NODE_ENV === 'development'
@@ -49,25 +61,29 @@ app.use(cors(corsOptions))
 
 app.use(express.json())
 
-app.use('/api/auth',          authRoutes)
-app.use('/api/profile',       profileRoutes)
-app.use('/api/scores',        scoresRoutes)
-app.use('/api/subscriptions', subscriptionRoutes)
-app.use('/api/charities',     charitiesRoutes)
-app.use('/api/draws',         drawsRoutes)
-app.use('/api/winners',       winnersRoutes)
-app.use('/api/admin',         adminRoutes)
-app.use('/api/donations',     donationsRoutes)
+if (authRoutes) app.use('/api/auth',          authRoutes)
+if (profileRoutes) app.use('/api/profile',       profileRoutes)
+if (scoresRoutes) app.use('/api/scores',        scoresRoutes)
+if (subscriptionRoutes) app.use('/api/subscriptions', subscriptionRoutes)
+if (charitiesRoutes) app.use('/api/charities',     charitiesRoutes)
+if (drawsRoutes) app.use('/api/draws',         drawsRoutes)
+if (winnersRoutes) app.use('/api/winners',       winnersRoutes)
+if (adminRoutes) app.use('/api/admin',         adminRoutes)
+if (donationsRoutes) app.use('/api/donations',     donationsRoutes)
 
 app.get('/health', (_, res) => res.json({ status: 'ok', env: process.env.NODE_ENV }))
 
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' })
+})
+
 app.use((err, req, res, next) => {
-  if (isDev) console.error(err)
   const origin = req.headers.origin
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin)
     res.setHeader('Access-Control-Allow-Credentials', 'true')
   }
+  if (isDev) console.error('[ERROR]', err.stack || err.message)
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' })
 })
 
