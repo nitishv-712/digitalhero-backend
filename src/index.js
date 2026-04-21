@@ -31,20 +31,29 @@ const allowedOrigins = [
   process.env.PRODUCTION_ADMIN_URL
 ].filter(Boolean)
 
-const corsOptions = {
-  origin: (origin, cb) => {
-    // allow requests with no origin (curl, Razorpay webhooks, server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true)
-    cb(null, false) // reject silently — don't throw, let browser show CORS error
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Allow all origins in development
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // Check allowlist in production
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error("Not allowed by CORS"));
+    }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}
-
-// Handle preflight OPTIONS for all routes
-app.options('*', cors(corsOptions))
-app.use(cors(corsOptions))
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 app.use(express.json())
 
