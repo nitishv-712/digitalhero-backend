@@ -21,10 +21,15 @@ const isDev = process.env.NODE_ENV === 'development'
 app.use('/api/subscriptions/webhook', express.raw({ type: '*/*' }))
 app.use('/api/donations/webhook',     express.raw({ type: '*/*' }))
 
-// CORS — allow web (3000) and admin (3001) in dev, or CLIENT_URL + ADMIN_URL in prod
-const allowedOrigins = isDev
-  ? ['http://localhost:3000', 'http://localhost:3001']
-  : [process.env.CLIENT_URL, process.env.ADMIN_URL].filter(Boolean)
+// CORS — always allow configured origins from env
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  process.env.CLIENT_URL,
+  process.env.ADMIN_URL,
+  process.env.PRODUCTION_CLIENT_URL,
+  process.env.PRODUCTION_ADMIN_URL
+].filter(Boolean)
 
 const corsOptions = {
   origin: (origin, cb) => {
