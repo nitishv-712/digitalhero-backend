@@ -31,29 +31,18 @@ const allowedOrigins = [
   process.env.PRODUCTION_ADMIN_URL
 ].filter(Boolean)
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    // Allow all origins in development
-    if (process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-    
-    // Check allowlist in production
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error("Not allowed by CORS"));
-    }
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true)
+    cb(null, false)
   },
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}
+
+app.options('*', cors(corsOptions))
+app.use(cors(corsOptions))
 
 app.use(express.json())
 
@@ -79,8 +68,13 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' })
 })
 
-const PORT = process.env.PORT || 4000
-app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT} [${process.env.NODE_ENV}]`)
-  startCron()
-})
+// Start server locally; export for Vercel serverless
+if (process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 4000
+  app.listen(PORT, () => {
+    console.log(`Backend running on port ${PORT} [${process.env.NODE_ENV}]`)
+    startCron()
+  })
+}
+
+module.exports = app
