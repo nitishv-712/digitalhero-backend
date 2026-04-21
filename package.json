@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "build": "prisma generate",
+    "vercel-build": "prisma generate",
     "seed": "node src/seed.js",
     "db:push": "prisma db push"
   },

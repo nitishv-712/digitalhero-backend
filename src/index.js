@@ -2,22 +2,15 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 
-// Safely require routes with error handling
-let authRoutes, profileRoutes, scoresRoutes, subscriptionRoutes, charitiesRoutes, drawsRoutes, winnersRoutes, adminRoutes, donationsRoutes
-
-try {
-  authRoutes         = require('./routes/auth')
-  profileRoutes      = require('./routes/profile')
-  scoresRoutes       = require('./routes/scores')
-  subscriptionRoutes = require('./routes/subscriptions')
-  charitiesRoutes    = require('./routes/charities')
-  drawsRoutes        = require('./routes/draws')
-  winnersRoutes      = require('./routes/winners')
-  adminRoutes        = require('./routes/admin')
-  donationsRoutes    = require('./routes/donations')
-} catch (err) {
-  console.error('Failed to load routes:', err.message)
-}
+const  authRoutes         = require('./routes/auth')
+const  profileRoutes      = require('./routes/profile')
+const  scoresRoutes       = require('./routes/scores')
+const  subscriptionRoutes = require('./routes/subscriptions')
+const  charitiesRoutes    = require('./routes/charities')
+const  drawsRoutes        = require('./routes/draws')
+const  winnersRoutes      = require('./routes/winners')
+const  adminRoutes        = require('./routes/admin')
+const  donationsRoutes    = require('./routes/donations')
 
 let startCron = () => {}
 try {
@@ -72,10 +65,6 @@ if (adminRoutes) app.use('/api/admin',         adminRoutes)
 if (donationsRoutes) app.use('/api/donations',     donationsRoutes)
 
 app.get('/health', (_, res) => res.json({ status: 'ok', env: process.env.NODE_ENV }))
-
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' })
-})
 
 app.use((err, req, res, next) => {
   const origin = req.headers.origin
